@@ -1,438 +1,878 @@
+```html
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Simulador Interactivos del Sistema Solar 3D</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eclipse Solar - Simulación Físico-Cinematográfica</title>
+    <!-- Tailwind CSS para la interfaz de control estilizada -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js para renderizado 3D de alta fidelidad -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Google Fonts para tipografía de interfaz científica/moderna -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
-        * {
-            box-sizing: border-box;
+        body {
             margin: 0;
-            padding: 0;
-        }
-        body, html {
             overflow: hidden;
-            width: 100%;
-            height: 100%;
-            background-color: #000;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: #fff;
+            background-color: #030712;
+            font-family: 'Inter', sans-serif;
+            color: #f3f4f6;
+            user-select: none;
         }
-        #canvas-container {
-            width: 100%;
-            height: 100%;
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 1;
+        .font-orbitron {
+            font-family: 'Orbitron', sans-serif;
         }
-        /* UI Flotante Elegante */
-        #ui-container {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            z-index: 10;
-            background: rgba(10, 10, 15, 0.75);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 20px;
-            border-radius: 16px;
-            width: 320px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
-            pointer-events: auto;
-            transition: all 0.3s ease;
+        /* Ocultar barra de scroll de controles */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
         }
-        h1 {
-            font-size: 1.2rem;
-            font-weight: 600;
-            margin-bottom: 5px;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            background: linear-gradient(45deg, #ffaa00, #00aaff);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
         }
-        p {
-            font-size: 0.8rem;
-            color: #aaa;
-            margin-bottom: 15px;
-            line-height: 1.4;
+        /* Efecto de cristal translúcido esmerilado */
+        .glassmorphism {
+            background: rgba(10, 15, 30, 0.45);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
         }
-        .btn-toggle {
-            width: 100%;
-            padding: 12px;
-            background: linear-gradient(135deg, #2c3e50, #3498db);
-            border: none;
-            border-radius: 8px;
-            color: white;
-            font-weight: bold;
+        /* Estilo para los inputs de rango */
+        input[type="range"] {
+            -webkit-appearance: none;
+            background: rgba(255, 255, 255, 0.1);
+            height: 4px;
+            border-radius: 2px;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #60a5fa;
             cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
-            text-transform: uppercase;
-            font-size: 0.85rem;
-            letter-spacing: 0.5px;
+            transition: transform 0.1s;
         }
-        .btn-toggle:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.5);
-            background: linear-gradient(135deg, #34495e, #2980b9);
-        }
-        .btn-toggle:active {
-            transform: translateY(1px);
-        }
-        .scale-info {
-            margin-top: 15px;
-            font-size: 0.75rem;
-            border-top: 1px solid rgba(255,255,255,0.1);
-            padding-top: 10px;
-        }
-        .scale-status {
-            display: inline-block;
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-weight: bold;
-            margin-left: 5px;
-            background: #e74c3c;
-        }
-        .scale-status.visual {
-            background: #2ecc71;
-        }
-        /* Instrucciones para móvil escondidas elegantemente */
-        .instructions {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 10;
-            background: rgba(0,0,0,0.6);
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            pointer-events: none;
-            text-align: center;
-            letter-spacing: 0.5px;
-            border: 1px solid rgba(255,255,255,0.05);
-        }
-        @media (max-width: 480px) {
-            #ui-container {
-                width: calc(100% - 40px);
-                top: 15px;
-                left: 15px;
-                padding: 15px;
-            }
-            h1 { font-size: 1.1rem; }
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.3);
+            background: #93c5fd;
         }
     </style>
 </head>
-<body>
+<body class="w-screen h-screen relative">
 
-    <div id="canvas-container"></div>
+    <!-- Canvas principal de renderizado -->
+    <canvas id="webgl-canvas" class="absolute inset-0 w-full h-full z-0"></canvas>
 
-    <div id="ui-container">
-        <h1>Sistema Solar 3D</h1>
-        <p>Simulación interactiva con físicas de rotación independientes y conmutador de escala métrica.</p>
-        <button class="btn-toggle" id="scaleBtn">Cambiar a Escala Real</button>
-        <div class="scale-info">
-            Modo actual: <span id="scaleStatus" class="scale-status visual">Visual</span>
+    <!-- Indicador Cinematográfico Superpuesto (HUD de Datos) -->
+    <div class="absolute top-6 left-6 z-10 pointer-events-none flex flex-col gap-1">
+        <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
+            <span class="font-orbitron font-black text-sm tracking-widest text-red-500">SIMULACIÓN EN VIVO</span>
+        </div>
+        <h1 class="font-orbitron text-xl sm:text-2xl font-bold tracking-tight text-white/95">SOLAR ECLIPSE SIMULATION</h1>
+        <p class="text-xs text-white/60 tracking-wider">MODO AUTOMÁTICO ACTIVO • VISTA TERRESTRE</p>
+    </div>
+
+    <!-- Telemetría Dinámica Superior Derecha -->
+    <div class="absolute top-6 right-6 z-10 pointer-events-none font-orbitron text-right text-[10px] sm:text-xs text-blue-400/90 tracking-widest leading-relaxed hidden md:block">
+        <div>FASE ACTUAL: <span id="telemetry-phase" class="text-white">-</span></div>
+        <div>COBERTURA: <span id="telemetry-coverage" class="text-white">0.0%</span></div>
+        <div>LUMINOSIDAD AMB: <span id="telemetry-lux" class="text-white">100k lux</span></div>
+        <div>TIEMPO RESTANTE: <span id="telemetry-timer" class="text-white">0s</span></div>
+    </div>
+
+    <!-- Pantalla de Bienvenida / Interacción (Requerida para arrancar audio y contextualizar) -->
+    <div id="welcome-modal" class="absolute inset-0 z-50 flex items-center justify-center bg-gray-950/90 transition-opacity duration-1000">
+        <div class="max-w-md w-11/12 p-8 rounded-2xl glassmorphism text-center flex flex-col items-center gap-6">
+            <div class="w-16 h-16 rounded-full border border-blue-500/30 flex items-center justify-center bg-blue-950/20 relative overflow-hidden">
+                <div class="absolute inset-0 bg-blue-500/20 rounded-full blur-md"></div>
+                <svg class="w-8 h-8 text-blue-400 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m12.728 12.728l.707.707M12 8a4 4 0 110 8 4 4 0 010-8z" />
+                </svg>
+            </div>
+            <div>
+                <h2 class="font-orbitron text-2xl font-black text-white tracking-wide mb-2">SOLAR CHRONOS</h2>
+                <p class="text-sm text-gray-400 leading-relaxed">
+                    Estás a punto de presenciar eclipses solares automáticos de calidad cinematográfica. Se generarán paisajes sonoros sutiles para sumergirte en la experiencia.
+                </p>
+            </div>
+            <button id="btn-enter" class="w-full py-3.5 px-6 rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-orbitron font-bold text-sm tracking-widest transition-all duration-300 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40">
+                INICIAR EXPERIENCIA
+            </button>
+            <p class="text-[10px] text-gray-500">Se recomienda usar auriculares para audio binaural de viento y ondas electromagnéticas.</p>
         </div>
     </div>
 
-    <div class="instructions">
-        Arrastrar: Rotar | Pellizcar/Rueda: Zoom
+    <!-- Controles Inferiores Flotantes (Interfaz de Usuario) -->
+    <div class="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 w-[95%] max-w-2xl transition-all duration-500 translate-y-2 opacity-0 hover:opacity-100 focus-within:opacity-100" id="controls-panel">
+        <div class="p-4 sm:p-5 rounded-2xl glassmorphism flex flex-col gap-4">
+            
+            <!-- Fila superior: Selector rápido de eclipses -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-3">
+                <span class="text-xs font-semibold tracking-wider text-gray-400">DISPARAR EVENTO INSTANTÁNEO:</span>
+                <div class="grid grid-cols-3 gap-2">
+                    <button onclick="triggerEclipse('total')" class="px-3 py-1.5 rounded-md text-[11px] font-orbitron bg-white/5 hover:bg-blue-500/20 border border-white/10 hover:border-blue-500/40 text-gray-300 hover:text-white transition-all">
+                        TOTAL
+                    </button>
+                    <button onclick="triggerEclipse('annular')" class="px-3 py-1.5 rounded-md text-[11px] font-orbitron bg-white/5 hover:bg-yellow-500/20 border border-white/10 hover:border-yellow-500/40 text-gray-300 hover:text-white transition-all">
+                        ANULAR
+                    </button>
+                    <button onclick="triggerEclipse('partial')" class="px-3 py-1.5 rounded-md text-[11px] font-orbitron bg-white/5 hover:bg-orange-500/20 border border-white/10 hover:border-orange-500/40 text-gray-300 hover:text-white transition-all">
+                        PARCIAL
+                    </button>
+                </div>
+            </div>
+
+            <!-- Fila media: Sliders de Ajuste -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- Control de Velocidad -->
+                <div class="flex flex-col gap-1.5">
+                    <div class="flex justify-between text-[11px] text-gray-400">
+                        <span class="font-semibold">VELOCIDAD DEL TIEMPO</span>
+                        <span id="speed-val" class="text-blue-400 font-mono">1.0x</span>
+                    </div>
+                    <input type="range" id="time-speed" min="0.1" max="4.0" step="0.1" value="1.0" class="w-full">
+                </div>
+
+                <!-- Control de Sensibilidad de Bloom / Brillo Atmósfera -->
+                <div class="flex flex-col gap-1.5">
+                    <div class="flex justify-between text-[11px] text-gray-400">
+                        <span class="font-semibold">BRILLO ATMOSFÉRICO</span>
+                        <span id="bloom-val" class="text-blue-400 font-mono">100%</span>
+                    </div>
+                    <input type="range" id="atmosphere-brightness" min="0.3" max="2.0" step="0.1" value="1.0" class="w-full">
+                </div>
+            </div>
+
+            <!-- Fila inferior: Estado de audio y automatización -->
+            <div class="flex items-center justify-between pt-1 text-xs text-gray-400">
+                <!-- Interruptor de Sonido -->
+                <button id="btn-toggle-sound" class="flex items-center gap-2 hover:text-white transition-colors bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-md border border-white/10">
+                    <svg id="sound-icon" class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M18.364 5.636a9 9 0 010 12.728M12 18.75V5.25L7.75 9.5H4.5v5h3.25L12 18.75z" />
+                    </svg>
+                    <span id="sound-label">AUDIO ACTIVO</span>
+                </button>
+
+                <!-- Estado del Ciclo -->
+                <div class="text-[11px] flex items-center gap-2">
+                    <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span id="status-text" class="text-gray-300">Esperando próximo eclipse...</span>
+                </div>
+            </div>
+
+        </div>
     </div>
 
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js",
-                "three/addons/": "https://threejs.org/examples/jsm/"
-            }
-        }
-    </script>
+    <!-- Notificación emergente temporal en pantalla para transiciones épicas -->
+    <div id="event-toast" class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-20 text-center transition-all duration-1000 opacity-0 scale-95">
+        <h3 id="toast-title" class="font-orbitron font-black text-3xl sm:text-5xl tracking-[0.2em] text-white uppercase drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]"></h3>
+        <p id="toast-subtitle" class="text-sm sm:text-base text-blue-300 tracking-[0.3em] uppercase mt-2"></p>
+    </div>
 
-    <script type="module">
-        import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-
-        // --- Configuración e Inicialización Básica ---
-        const container = document.getElementById('canvas-container');
-        const scene = new THREE.Scene();
-        
-        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 5000);
-        camera.position.set(0, 45, 85);
-
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.2;
-        container.appendChild(renderer.domElement);
-
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.05;
-        controls.maxDistance = 2000;
-        controls.minDistance = 3;
-
-        // --- Estado de la Simulación ---
-        let modoEscalaReal = false; // false = Visual, true = Real (UA)
-
-        // --- Iluminación ---
-        const ambientLight = new THREE.AmbientLight(0x333333); // Luz espacial tenue
-        scene.add(ambientLight);
-
-        const sunLight = new THREE.PointLight(0xffffff, 2, 1500, 0.5); // Luz del Sol
-        scene.add(sunLight);
-
-        // --- Fondo de Estrellas Procedimental ---
-        const starsGeometry = new THREE.BufferGeometry();
-        const starsCount = 3000;
-        const starPositions = new Float32Array(starsCount * 3);
-
-        for(let i = 0; i < starsCount * 3; i += 3) {
-            // Posicionar estrellas en una esfera gigante lejana
-            const u = Math.random();
-            const v = Math.random();
-            const theta = u * 2.0 * Math.PI;
-            const phi = Math.acos(2.0 * v - 1.0);
-            const r = 900 + Math.random() * 300; 
-            
-            starPositions[i] = r * Math.sin(phi) * Math.cos(theta);
-            starPositions[i+1] = r * Math.sin(phi) * Math.sin(theta);
-            starPositions[i+2] = r * Math.cos(phi);
-        }
-        starsGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-        const starsMaterial = new THREE.PointsMaterial({color: 0xffffff, size: 1.2, sizeAttenuation: true});
-        const starField = new THREE.Points(starsGeometry, starsMaterial);
-        scene.add(starField);
-
-        // --- Generador de Texturas Procedimentales (Canvas) ---
-        function createNoiseTexture(type, baseColor, detailColor) {
-            const canvas = document.createElement('canvas');
-            canvas.width = 512;
-            canvas.height = 256;
-            const ctx = canvas.getContext('2d');
-            
-            ctx.fillStyle = baseColor;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // Generación de patrones simples simulando superficies planetarias
-            if (type === 'sun') {
-                let gradient = ctx.createRadialGradient(256,128,10, 256,128,256);
-                gradient.addColorStop(0, '#fffdf0');
-                gradient.addColorStop(0.2, '#ffaa00');
-                gradient.addColorStop(1, '#ff3300');
-                ctx.fillStyle = gradient;
-                ctx.fillRect(0,0,512,256);
-            } else if (type === 'stripes') { // Júpiter / Saturno
-                for (let i = 0; i < 256; i += 8) {
-                    ctx.fillStyle = Math.random() > 0.4 ? baseColor : detailColor;
-                    ctx.fillRect(0, i, 512, Math.random() * 12 + 4);
+    <!-- ==================== LOGICA Y SHADERS DEL SIMULADOR ==================== -->
+    <script>
+        /* --- PROGRAMACION COMPLETA DEL SHADER DE LA ATMOSFERA Y ECLIPSE ---
+           Contiene el renderizado del cielo diurno, la corona solar reactiva,
+           el anillo de fuego, las nubes procedimentales dinámicas y los efectos volumétricos.
+        */
+        const EclipseShader = {
+            vertexShader: `
+                varying vec2 vUv;
+                void main() {
+                    vUv = uv;
+                    gl_Position = vec4(position, 1.0);
                 }
-            } else if (type === 'spots') { // Tierra / Marte / Mercurio
-                for(let i=0; i<40; i++) {
-                    ctx.fillStyle = detailColor;
-                    ctx.beginPath();
-                    ctx.arc(Math.random()*512, Math.random()*256, Math.random()*40+10, 0, Math.PI*2);
-                    ctx.fill();
-                }
-            }
-            return new THREE.CanvasTexture(canvas);
-        }
-
-        // --- Datos de los Cuerpos Celestes ---
-        // Escala Real (UA aproximadas para visualización limpia, escaladas proporcionalmente)
-        // Escala Visual (Valores arbitrarios para que sea estético en pantalla)
-        const planetData = [
-            { name: "Mercurio", rVisual: 0.8, rReal: 0.35, distVisual: 12, distReal: 15,  vRot: 0.01,  vOrb: 0.04,  color: "#888888", texType: 'spots', detail: "#555555", retrograde: false },
-            { name: "Venus",    rVisual: 1.4, rReal: 0.87, distVisual: 16, distReal: 24,  vRot: -0.002, vOrb: 0.015, color: "#e3bb76", texType: 'stripes', detail: "#b58f46", retrograde: true },
-            { name: "Tierra",   rVisual: 1.6, rReal: 0.91, distVisual: 22, distReal: 36,  vRot: 0.02,  vOrb: 0.01,  color: "#2233ff", texType: 'spots', detail: "#22aa33", retrograde: false },
-            { name: "Marte",    rVisual: 1.1, rReal: 0.49, distVisual: 28, distReal: 50,  vRot: 0.018, vOrb: 0.008, color: "#c1440e", texType: 'spots', detail: "#731d04", retrograde: false },
-            { name: "Júpiter",  rVisual: 3.8, rReal: 2.20, distVisual: 38, distReal: 110, vRot: 0.04,  vOrb: 0.002, color: "#b07f35", texType: 'stripes', detail: "#ffddaa", retrograde: false },
-            { name: "Saturno",  rVisual: 3.2, rReal: 1.80, distVisual: 50, distReal: 180, vRot: 0.035, vOrb: 0.0009, color: "#e2bf7d", texType: 'stripes', detail: "#b5945b", retrograde: false, hasRings: true },
-            { name: "Urano",    rVisual: 2.2, rReal: 1.20, distVisual: 62, distReal: 280, vRot: -0.03, vOrb: 0.0004, color: "#4b70dd", texType: 'stripes', detail: "#70a0e0", retrograde: true },
-            { name: "Neptuno",  rVisual: 2.0, rReal: 1.15, distVisual: 72, distReal: 390, vRot: 0.028, vOrb: 0.0001, color: "#274687", texType: 'spots', detail: "#212e5f", retrograde: false }
-        ];
-
-        // --- Crear el Sol ---
-        const sunTex = createNoiseTexture('sun');
-        const sunGeo = new THREE.SphereGeometry(6, 32, 32);
-        const sunMat = new THREE.MeshBasicMaterial({ map: sunTex }); // Basic para que emita su propia luz visual sin sombras
-        const sunMesh = new THREE.Mesh(sunGeo, sunMat);
-        scene.add(sunMesh);
-
-        // --- Crear Planetas, Órbitas y Satélites ---
-        const planetObjects = [];
-        const orbitLines = [];
-
-        // Función para generar la geometría lineal de una órbita
-        function createOrbitLine(radius) {
-            const material = new THREE.LineBasicMaterial({ color: 0xffffff, opacity: 0.08, transparent: true });
-            const geometry = new THREE.BufferGeometry();
-            const points = [];
-            for (let i = 0; i <= 128; i++) {
-                const theta = (i / 128) * Math.PI * 2;
-                points.push(new THREE.Vector3(Math.cos(theta) * radius, 0, Math.sin(theta) * radius));
-            }
-            geometry.setFromPoints(points);
-            const line = new THREE.Line(geometry, material);
-            scene.add(line);
-            return line;
-        }
-
-        planetData.forEach((data) => {
-            // Contenedor pivot para la órbita del planeta
-            const pivot = new THREE.Group();
-            scene.add(pivot);
-
-            // Malla del Planeta
-            const geo = new THREE.SphereGeometry(data.rVisual, 32, 32);
-            const tex = createNoiseTexture(data.texType, data.color, data.detail);
-            const mat = new THREE.MeshStandardMaterial({ 
-                map: tex,
-                roughness: 0.8,
-                metalness: 0.1
-            });
-            const mesh = new THREE.Mesh(geo, mat);
-            
-            // Posición inicial estándar (Modo Visual)
-            mesh.position.x = data.distVisual;
-            pivot.add(mesh);
-
-            // Añadir Anillos a Saturno si aplica
-            if (data.hasRings) {
-                const ringGeo = new THREE.RingGeometry(data.rVisual * 1.4, data.rVisual * 2.3, 64);
-                // Ajustar UVs para que el mapa se estire circularmente de manera limpia
-                const pos = ringGeo.attributes.position;
-                const v3 = new THREE.Vector3();
-                for (let i = 0; i < pos.count; i++) {
-                    v3.fromBufferAttribute(pos, i);
-                    ringGeo.attributes.uv.setXY(i, v3.length() < data.rVisual * 1.8 ? 0 : 1, 1);
-                }
-                const ringMat = new THREE.MeshStandardMaterial({ 
-                    color: data.color, 
-                    side: THREE.DoubleSide,
-                    transparent: true,
-                    opacity: 0.6
-                });
-                const ringMesh = new THREE.Mesh(ringGeo, ringMat);
-                ringMesh.rotation.x = Math.PI / 2.2; // Inclinación elegante
-                mesh.add(ringMesh);
-            }
-
-            // Añadir la Luna a la Tierra
-            let moonMesh = null;
-            if (data.name === "Tierra") {
-                const moonGeo = new THREE.SphereGeometry(0.35, 16, 16);
-                const moonMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.9 });
-                moonMesh = new THREE.Mesh(moonGeo, moonMat);
-                moonMesh.position.x = 3; // Distancia a la Tierra
-                mesh.add(moonMesh);
-            }
-
-            // Crear la línea visual de su órbita actual
-            const orbitLine = createOrbitLine(data.distVisual);
-
-            // Guardar referencias para las animaciones y transiciones de escala
-            planetObjects.push({
-                mesh: mesh,
-                pivot: pivot,
-                data: data,
-                moon: moonMesh,
-                moonAngle: 0,
-                orbitLine: orbitLine,
-                currentDist: data.distVisual,
-                targetDist: data.distVisual,
-                currentRadius: data.rVisual,
-                targetRadius: data.rVisual
-            });
-        });
-
-        // --- Gestión del Cambio de Escala (Transiciones Fluídas) ---
-        const scaleBtn = document.getElementById('scaleBtn');
-        const scaleStatus = document.getElementById('scaleStatus');
-
-        scaleBtn.addEventListener('click', () => {
-            modoEscalaReal = !modoEscalaReal;
-
-            if (modoEscalaReal) {
-                scaleStatus.textContent = "Real (UA)";
-                scaleStatus.className = "scale-status real";
-                scaleBtn.textContent = "Cambiar a Escala Visual";
+            `,
+            fragmentShader: `
+                uniform vec2 uResolution;
+                uniform float uTime;
                 
-                // Ajustar objetivos métricos reales
-                planetObjects.forEach(obj => {
-                    obj.targetDist = obj.data.distReal;
-                    obj.targetRadius = obj.data.rReal;
-                });
-            } else {
-                scaleStatus.textContent = "Visual";
-                scaleStatus.className = "scale-status visual";
-                scaleBtn.textContent = "Cambiar a Escala Real";
+                // Parámetros de los astros
+                uniform vec2 uSunPos;
+                uniform vec2 uMoonPos;
+                uniform float uSunSize;
+                uniform float uMoonSize;
+                
+                // Controladores de fase
+                uniform float uEclipseType; // 0: Parcial, 1: Anular, 2: Total
+                uniform float uCoverage;    // Grado de interposición (0.0 a 1.0)
+                uniform float uAtmosphereBrightness;
+                uniform float uWindSpeed;
 
-                // Ajustar objetivos métricos de diseño visual
-                planetObjects.forEach(obj => {
-                    obj.targetDist = obj.data.distVisual;
-                    obj.targetRadius = obj.data.rVisual;
-                });
+                varying vec2 vUv;
+
+                // Generador de ruido de valor pseudo-aleatorio para nubes y corona
+                float noise(in vec2 p) {
+                    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+                }
+
+                // Ruido suave de 2D (Bilineal)
+                float smoothNoise(in vec2 p) {
+                    vec2 i = floor(p);
+                    vec2 f = fract(p);
+                    f = f*f*(3.0-2.0*f); // Suavizado de Hermite
+                    
+                    float a = noise(i);
+                    float b = noise(i + vec2(1.0, 0.0));
+                    float c = noise(i + vec2(0.0, 1.0));
+                    float d = noise(i + vec2(1.0, 1.0));
+                    
+                    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+                }
+
+                // Ruido Fractal Browniano (FBM) para atmósfera hiper-realista
+                float fbm(in vec2 p) {
+                    float value = 0.0;
+                    float amplitude = 0.5;
+                    float frequency = 1.0;
+                    for (int i = 0; i < 5; i++) {
+                        value += amplitude * smoothNoise(p * frequency);
+                        frequency *= 2.0;
+                        amplitude *= 0.5;
+                    }
+                    return value;
+                }
+
+                // Distorsión óptica por calor extremo alrededor del sol (Anillo de fuego)
+                vec2 heatDistortion(vec2 uv, float strength) {
+                    if (strength <= 0.0) return uv;
+                    float scale = 25.0;
+                    float speed = uTime * 6.0;
+                    vec2 offset = vec2(
+                        smoothNoise(uv * scale + vec2(speed, 0.0)),
+                        smoothNoise(uv * scale + vec2(0.0, speed))
+                    );
+                    return uv + (offset - 0.5) * strength;
+                }
+
+                void main() {
+                    // Normalizar coordenadas manteniendo la relación de aspecto cinematográfica
+                    vec2 uv = vUv;
+                    vec2 aspectUv = (uv - 0.5) * vec2(uResolution.x / uResolution.y, 1.0) + 0.5;
+                    
+                    // Centrar puntos de astros basados en coordenadas de pantalla
+                    vec2 sunCenter = (uSunPos - 0.5) * vec2(uResolution.x / uResolution.y, 1.0) + 0.5;
+                    vec2 moonCenter = (uMoonPos - 0.5) * vec2(uResolution.x / uResolution.y, 1.0) + 0.5;
+                    
+                    // Distancias de pixeles a los cuerpos celestes
+                    float distToSun = distance(aspectUv, sunCenter);
+                    float distToMoon = distance(aspectUv, moonCenter);
+
+                    // --- GENERACIÓN DEL COLOR DEL CIELO DIURNO (Atmospheric Scattering Aproximado) ---
+                    // El color del cielo depende de la altitud en pantalla y de la proximidad al Sol
+                    vec3 skyDayLight = vec3(0.35, 0.62, 0.88); // Azul celeste radiante
+                    vec3 skyHorizon = vec3(0.70, 0.85, 0.95);  // Horizonte degradado
+                    vec3 skyZenith = vec3(0.12, 0.32, 0.65);   // Azul profundo de altura
+                    
+                    // Degradado base del cielo diurno
+                    vec3 baseSky = mix(skyHorizon, skyZenith, uv.y);
+                    
+                    // Modulador de penumbra por el eclipse. Durante la totalidad, el cielo decae dramáticamente
+                    // pero de forma no-lineal, emulando la física real de la luz refractada en el limbo terrestre.
+                    float twilightFactor = mix(1.0, 0.04, uCoverage); 
+                    
+                    // Añadimos una sutil corona de crepúsculo de 360 grados en el horizonte durante la totalidad
+                    vec3 twilightColor = vec3(0.9, 0.35, 0.1) * (1.0 - twilightFactor) * 0.3;
+                    baseSky = baseSky * twilightFactor + twilightColor * (1.0 - uv.y);
+
+                    // --- ESTRELLAS TENUES (Solo visibles en cobertura extrema, simulando penumbra real) ---
+                    float stars = 0.0;
+                    if (uCoverage > 0.85) {
+                        // Generación aleatoria basada en ruido de alta frecuencia
+                        float starPattern = noise(aspectUv * 350.0);
+                        if (starPattern > 0.994) {
+                            // Parpadeo sutil
+                            float twinkle = smoothNoise(aspectUv * 10.0 + vec2(uTime * 1.5));
+                            stars = (starPattern - 0.994) * 80.0 * twinkle * ((uCoverage - 0.85) / 0.15);
+                        }
+                    }
+
+                    // --- NUBES VOLUMÉTRICAS EN MOVIMIENTO ---
+                    // Generamos dos capas de nubes a diferente altitud y velocidad
+                    vec2 cloudUv1 = aspectUv * 2.2 + vec2(uTime * uWindSpeed * 0.015, uTime * 0.002);
+                    vec2 cloudUv2 = aspectUv * 4.5 - vec2(uTime * uWindSpeed * 0.008, uTime * 0.004);
+                    
+                    float n1 = fbm(cloudUv1);
+                    float n2 = fbm(cloudUv2);
+                    
+                    float cloudDensity = smoothstep(0.35, 0.75, mix(n1, n2, 0.45));
+                    // Las nubes reflejan la iluminación menguante
+                    vec3 cloudColor = mix(vec3(0.98, 0.98, 1.0), vec3(0.1, 0.14, 0.2), uCoverage);
+                    // Silueta de nube iluminada por detrás cerca del sol (Silver Lining)
+                    float edgeGlow = smoothstep(0.28, 0.0, distToSun) * (1.0 - uCoverage) * 0.45;
+                    cloudColor += vec3(1.0, 0.9, 0.7) * edgeGlow * cloudDensity;
+
+                    // --- COMPORTAMIENTO LUMÍNICO DEL SOL ---
+                    // En eclipses anulares o totales, aplicamos distorsión por calor óptico
+                    float isAnnularOrTotal = step(0.9, uEclipseType);
+                    float distortionStrength = isAnnularOrTotal * (uCoverage * 0.015);
+                    vec2 sunAspectUv = heatDistortion(aspectUv, distortionStrength);
+                    float distToSunDistorted = distance(sunAspectUv, sunCenter);
+
+                    // Sol Base: Núcleo ultra brillante
+                    float sunCore = smoothstep(uSunSize, uSunSize - 0.005, distToSunDistorted);
+                    
+                    // Corona Solar Atmosférica (Glow de dispersión)
+                    float sunGlow1 = exp(-distToSunDistorted * 22.0) * 1.5;
+                    float sunGlow2 = exp(-distToSunDistorted * 5.0) * 0.4;
+                    float sunAtmosphere = (sunGlow1 + sunGlow2) * uAtmosphereBrightness * (1.0 - uCoverage * 0.92);
+
+                    // --- LA LUNA (Cuerpo opaco negro que oscurece) ---
+                    float moonMask = smoothstep(uMoonSize, uMoonSize + 0.002, distToMoon);
+
+                    // --- CORONA ECLÍPTICA TOTAL (La Corona Solar Oculta) ---
+                    // Se activa de manera exponencial cuando el eclipse alcanza la totalidad (uCoverage -> 1.0)
+                    float coronaGlow = 0.0;
+                    vec3 coronaColor = vec3(0.0);
+                    if (uCoverage > 0.8) {
+                        float tFactor = (uCoverage - 0.8) / 0.2; // Escalado a 0.0 - 1.0
+                        
+                        // Generar filamentos de la corona usando FBM polar
+                        vec2 dir = aspectUv - sunCenter;
+                        float angle = atan(dir.y, dir.x);
+                        
+                        // Ruido radial dinámico simula campos magnéticos solares moviéndose en el plasma
+                        float r1 = fbm(vec2(angle * 3.0, uTime * 0.15 - distToSun * 1.2));
+                        float r2 = fbm(vec2(angle * 7.0 + 12.0, uTime * 0.3 + distToSun * 1.8));
+                        float filaments = mix(r1, r2, 0.55);
+                        
+                        // Decaimiento de la corona con la distancia al Sol
+                        float distFalloff = exp(-distToSunDistorted * 4.8);
+                        float distFalloffOuter = exp(-distToSunDistorted * 1.8);
+                        
+                        // Combinamos filamentos, decaimiento y tipo de eclipse
+                        if (uEclipseType >= 1.5) { // Eclipse Total
+                            coronaGlow = (distFalloff * 2.2 + distFalloffOuter * 0.65) * (1.0 + filaments * 0.9) * tFactor;
+                            // Color blanco perlado de la corona con tintes azules en el borde extremo
+                            coronaColor = mix(vec3(0.95, 0.97, 1.0), vec3(0.7, 0.85, 1.0), distToSunDistorted * 0.5) * coronaGlow;
+                        } else if (uEclipseType >= 0.5 && uEclipseType < 1.5) { // Eclipse Anular (Anillo de Fuego)
+                            // Generamos un anillo delgado de fuego líquido cromático
+                            float ringThickness = 0.012;
+                            float ringDist = abs(distToSunDistorted - uSunSize);
+                            float ringGlow = smoothstep(ringThickness, 0.0, ringDist);
+                            float ringSparks = fbm(vec2(angle * 12.0, uTime * 0.5)) * 0.4;
+                            
+                            coronaGlow = (ringGlow * 4.5 + exp(-distToSunDistorted * 12.0) * 1.5) * tFactor;
+                            // Color naranja/rojo super brillante
+                            coronaColor = mix(vec3(1.0, 0.28, 0.01), vec3(1.0, 0.82, 0.2), filaments) * coronaGlow;
+                        }
+                    }
+
+                    // --- LENS FLARE CINEMATOGRÁFICO DE ÚLTIMA GENERACIÓN ---
+                    // Genera reflejos ópticos de lente en el eje Sol -> Centro de Pantalla
+                    vec2 screenCenter = vec2(0.5);
+                    vec2 flareVec = sunCenter - screenCenter;
+                    
+                    // Componente de destellos radiales sutiles
+                    float flareRays = 0.0;
+                    if (uCoverage < 0.98) {
+                        float angleSun = atan(sunAspectUv.y - sunCenter.y, sunAspectUv.x - sunCenter.x);
+                        float rayPattern = sin(angleSun * 12.0 + uTime * 0.2) * cos(angleSun * 5.0 - uTime * 0.1) * 0.5 + 0.5;
+                        rayPattern += sin(angleSun * 35.0) * 0.25;
+                        flareRays = max(0.0, rayPattern) * exp(-distToSunDistorted * 15.0) * 0.2 * (1.0 - uCoverage);
+                    }
+
+                    // --- ENSAMBLADO FINAL DE CAPAS PIXEL A PIXEL ---
+                    // 1. Cielo y estrellas
+                    vec3 finalColor = baseSky + vec3(stars);
+                    
+                    // 2. Mezclar nubes detrás del Sol (con iluminación atmosférica)
+                    finalColor = mix(finalColor, cloudColor, cloudDensity * 0.6);
+                    
+                    // 3. Añadir Sol, Brillo Atmosférico y Corona Solar
+                    vec3 solarDisk = vec3(1.0, 0.96, 0.92) * sunCore * 5.0; // HDR artificial
+                    vec3 solarGlow = vec3(1.0, 0.90, 0.80) * sunAtmosphere;
+                    
+                    vec3 sunAssembly = solarDisk + solarGlow;
+                    
+                    // Aplicamos el eclipse parcial u ocultación por la Luna
+                    sunAssembly *= moonMask;
+                    
+                    // Añadir Corona / Anillo de fuego si corresponde
+                    sunAssembly += coronaColor;
+                    
+                    // Mezclar Sol ensamblado en la atmósfera
+                    finalColor += sunAssembly;
+                    
+                    // 4. Destello Cinematográfico en lente (Lens Flare)
+                    finalColor += (vec3(1.0, 0.92, 0.85) * flareRays);
+                    
+                    // 5. Nubes en primer plano (siluetas sobre el resplandor directo)
+                    finalColor = mix(finalColor, cloudColor * 0.2, cloudDensity * 0.3 * (1.0 - moonMask));
+
+                    // --- CORRECCIÓN DE TONO CINEMÁTICA (Tone Mapping & Bloom de base) ---
+                    // Aplicamos un operador Reinhard simplificado para evitar zonas quemadas irreales (clipping blanco)
+                    vec3 mapped = finalColor / (finalColor + vec3(1.0));
+                    
+                    // Corrección de gamma para realzar contraste en dispositivos modernos (Gamma 2.2)
+                    mapped = pow(mapped, vec3(1.0 / 2.2));
+                    
+                    // Viñeteado cinematográfico en esquinas
+                    float vignette = uv.x * uv.y * (1.0 - uv.x) * (1.0 - uv.y);
+                    vignette = clamp(pow(16.0 * vignette, 0.25), 0.0, 1.0);
+                    mapped *= mix(0.4, 1.0, vignette);
+
+                    gl_FragColor = vec4(mapped, 1.0);
+                }
+            `
+        };
+
+        // --- GESTIÓN DE AUDIO BINAURAL PROCEDURAL (WEB AUDIO API) ---
+        // Genera efectos de sonido hiper-realistas y profundos sin depender de archivos de audio
+        class AmbientSynthesizer {
+            constructor() {
+                this.ctx = null;
+                this.windFilter = null;
+                this.windGain = null;
+                this.droneGain = null;
+                this.droneOsc1 = null;
+                this.droneOsc2 = null;
+                this.synthActive = false;
+                this.muted = false;
             }
-        });
 
-        // --- Bucle de Animación y Renderizado (60 FPS / RequestAnimationFrame) ---
+            init() {
+                if (this.ctx) return;
+                
+                // Inicializar Contexto de Audio
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                this.ctx = new AudioContext();
+
+                // 1. GENERACIÓN DEL RUIDO DEL VIENTO TERRESTRE
+                // Generamos un búfer con ruido blanco
+                const bufferSize = 2 * this.ctx.sampleRate;
+                const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const output = noiseBuffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    output[i] = Math.random() * 2 - 1;
+                }
+
+                const whiteNoise = this.ctx.createBufferSource();
+                whiteNoise.buffer = noiseBuffer;
+                whiteNoise.loop = true;
+
+                // Filtro pasabanda para simular ráfagas de viento orgánico
+                this.windFilter = this.ctx.createBiquadFilter();
+                this.windFilter.type = 'bandpass';
+                this.windFilter.Q.value = 2.0;
+                this.windFilter.frequency.value = 400;
+
+                this.windGain = this.ctx.createGain();
+                this.windGain.gain.value = 0.08;
+
+                whiteNoise.connect(this.windFilter);
+                this.windFilter.connect(this.windGain);
+                this.windGain.connect(this.ctx.destination);
+                whiteNoise.start();
+
+                // Modulador LFO para simular ráfagas de viento aleatorias
+                const lfo = this.ctx.createOscillator();
+                lfo.frequency.value = 0.08; // Muy lento
+                const lfoGain = this.ctx.createGain();
+                lfoGain.gain.value = 180; // Amplitud del vaivén de frecuencia
+
+                lfo.connect(lfoGain);
+                lfoGain.connect(this.windFilter.frequency);
+                lfo.start();
+
+                // 2. GENERACIÓN DEL DRONE ÉPICO (Subbajos resonantes durante eclipses)
+                this.droneGain = this.ctx.createGain();
+                this.droneGain.gain.value = 0.0; // Inicia inaudible
+
+                // Oscilador 1 (Subbajo)
+                this.droneOsc1 = this.ctx.createOscillator();
+                this.droneOsc1.type = 'sawtooth';
+                this.droneOsc1.frequency.value = 55; // Nota La (A1)
+
+                // Filtro para suavizar el subbajo a algo orgánico y pesado
+                const droneFilter = this.ctx.createBiquadFilter();
+                droneFilter.type = 'lowpass';
+                droneFilter.frequency.value = 90;
+
+                // Oscilador 2 (Infratono oscilante para batido acústico)
+                this.droneOsc2 = this.ctx.createOscillator();
+                this.droneOsc2.type = 'sine';
+                this.droneOsc2.frequency.value = 55.4; // Ligeramente desfinado para batido
+
+                this.droneOsc1.connect(droneFilter);
+                this.droneOsc2.connect(droneFilter);
+                droneFilter.connect(this.droneGain);
+                this.droneGain.connect(this.ctx.destination);
+
+                this.droneOsc1.start();
+                this.droneOsc2.start();
+
+                this.synthActive = true;
+                this.updateVolume();
+            }
+
+            // Adapta la sonoridad según la intensidad del eclipse
+            updateDynamics(coverage, eclipseType) {
+                if (!this.synthActive || this.muted) return;
+
+                const now = this.ctx.currentTime;
+                
+                // El viento se vuelve más frío y silbante durante la totalidad
+                const targetWindFreq = 300 + (300 * (1.0 - coverage));
+                const targetWindQ = 1.0 + (3.0 * coverage);
+                const targetWindVol = 0.06 + (0.09 * coverage);
+
+                this.windFilter.frequency.setValueAtTime(targetWindFreq, now);
+                this.windFilter.Q.setValueAtTime(targetWindQ, now);
+                this.windGain.gain.linearRampToValueAtTime(targetWindVol, now + 0.1);
+
+                // El subbajo épico se activa solo con eclipse total o anular avanzado
+                if (coverage > 0.5) {
+                    const factor = (coverage - 0.5) / 0.5;
+                    const maxDroneVol = eclipseType === 2 ? 0.28 : 0.14; // Más pesado en totalidad
+                    this.droneGain.gain.linearRampToValueAtTime(maxDroneVol * factor, now + 0.2);
+                } else {
+                    this.droneGain.gain.linearRampToValueAtTime(0.0, now + 0.2);
+                }
+            }
+
+            toggleMute() {
+                this.muted = !this.muted;
+                this.updateVolume();
+                return this.muted;
+            }
+
+            updateVolume() {
+                if (!this.synthActive) return;
+                const now = this.ctx.currentTime;
+                if (this.muted) {
+                    this.windGain.gain.linearRampToValueAtTime(0.0, now + 0.1);
+                    this.droneGain.gain.linearRampToValueAtTime(0.0, now + 0.1);
+                } else {
+                    this.windGain.gain.linearRampToValueAtTime(0.08, now + 0.1);
+                }
+            }
+        }
+
+        const audioSynth = new AmbientSynthesizer();
+
+
+        // --- CONFIGURACIÓN PRINCIPAL DE LA SIMULACIÓN Y WEBGL ---
+        let canvas, renderer, scene, camera, material, mesh;
+        
+        // Coordenadas fijas del Sol (Cinematográficas, centrado óptico superior)
+        const sunPosition = { x: 0.5, y: 0.65 };
+        
+        // Estado dinámico de la simulación
+        const state = {
+            time: 0,
+            speed: 1.0,
+            atmosphereBrightness: 1.0,
+            
+            // Estado orbital
+            moonX: -0.2, // Posición inicial fuera de pantalla
+            moonY: 0.65,
+            sunSize: 0.045,
+            moonSize: 0.046, // Ligeramente mayor que el Sol para totalidad perfecta
+            
+            // Control de automatización
+            eclipseType: 2, // 0: Parcial, 1: Anular, 2: Total
+            coverage: 0.0,
+            activeEvent: false,
+            eventProgress: 0.0,
+            timeToNextEclipse: 30, // segundos de ciclo diurno normal inicial
+        };
+
+        // Inicializador de WebGL
+        function initWebGL() {
+            canvas = document.getElementById('webgl-canvas');
+            renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            scene = new THREE.Scene();
+            camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+            // Crear material uniforme basado en el shader personalizado
+            material = new THREE.ShaderMaterial({
+                vertexShader: EclipseShader.vertexShader,
+                fragmentShader: EclipseShader.fragmentShader,
+                uniforms: {
+                    uResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+                    uTime: { value: 0 },
+                    uSunPos: { value: new THREE.Vector2(sunPosition.x, sunPosition.y) },
+                    uMoonPos: { value: new THREE.Vector2(state.moonX, state.moonY) },
+                    uSunSize: { value: state.sunSize },
+                    uMoonSize: { value: state.moonSize },
+                    uEclipseType: { value: 2.0 },
+                    uCoverage: { value: 0.0 },
+                    uAtmosphereBrightness: { value: 1.0 },
+                    uWindSpeed: { value: 0.12 }
+                },
+                depthWrite: false,
+                depthTest: false
+            });
+
+            const geometry = new THREE.PlaneGeometry(2, 2);
+            mesh = new THREE.Mesh(geometry, material);
+            scene.add(mesh);
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function onWindowResize() {
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            material.uniforms.uResolution.value.set(window.innerWidth, window.innerHeight);
+        }
+
+
+        // --- SISTEMA AUTOMÁTICO DE ECLIPSES (Física y Tránsitos) ---
+        // Generador de eventos aleatorios programados
+        function triggerEclipse(typeString) {
+            if (state.activeEvent) return; // Evitar solapamientos
+
+            state.activeEvent = true;
+            state.eventProgress = 0.0;
+            
+            // Decidir tipo
+            if (typeString === 'total') {
+                state.eclipseType = 2;
+                state.moonSize = 0.0462; // Totalmente eclipsado
+            } else if (typeString === 'annular') {
+                state.eclipseType = 1;
+                state.moonSize = 0.0435; // Ligeramente más pequeño para ver el "anillo"
+            } else {
+                state.eclipseType = 0;
+                state.moonSize = 0.046; // Parcial excéntrico
+            }
+
+            // Lanzar notificación cinematográfica
+            showNotification(state.eclipseType);
+        }
+
+        function showNotification(type) {
+            const toast = document.getElementById('event-toast');
+            const title = document.getElementById('toast-title');
+            const subtitle = document.getElementById('toast-subtitle');
+
+            let typeName = "";
+            let description = "";
+            let colorClass = "";
+
+            if (type === 2) {
+                typeName = "ECLIPSE TOTAL DE SOL";
+                description = "CORONA MAGNÉTICA VISIBLE • APAGÓN PARCIAL";
+                colorClass = "text-white";
+            } else if (type === 1) {
+                typeName = "ECLIPSE ANULAR";
+                description = "ANILLO DE FUEGO SINCRÓNICO DETECTADO";
+                colorClass = "text-yellow-400";
+            } else {
+                typeName = "ECLIPSE PARCIAL";
+                description = "OCULTACIÓN LOCAL SOLAR EN PROGRESO";
+                colorClass = "text-orange-400";
+            }
+
+            title.innerHTML = typeName;
+            title.className = `font-orbitron font-black text-2xl sm:text-5xl tracking-[0.2em] uppercase drop-shadow-[0_0_25px_rgba(255,255,255,0.4)] ${colorClass}`;
+            subtitle.innerText = description;
+
+            // Transición fluida de entrada y salida
+            toast.style.opacity = "1";
+            toast.style.transform = "translate(-50%, -50%) scale(1.0)";
+
+            setTimeout(() => {
+                toast.style.opacity = "0";
+                toast.style.transform = "translate(-50%, -50%) scale(0.95)";
+            }, 6000);
+        }
+
+        // --- BUCLE PRINCIPAL DE RENDERIZADO Y CONTROL ORBITAL ---
         const clock = new THREE.Clock();
 
         function animate() {
             requestAnimationFrame(animate);
-            const delta = clock.getDelta();
 
-            // Rotación del Sol sobre su eje
-            sunMesh.rotation.y += 0.002;
+            // Obtener delta de tiempo de renderizado suave
+            const delta = clock.getDelta() * state.speed;
+            state.time += delta;
 
-            planetObjects.forEach(obj => {
-                // Interpolar de manera fluida (Lerp) distancias y tamaños en los cambios de modo
-                obj.currentDist = THREE.MathUtils.lerp(obj.currentDist, obj.targetDist, 0.05);
-                obj.currentRadius = THREE.MathUtils.lerp(obj.currentRadius, obj.targetRadius, 0.05);
+            // Gestión del Tránsito de la Luna (Órbita e interposición)
+            if (state.activeEvent) {
+                // El progreso del evento va de 0.0 a 1.0 durante unos ~30 segundos (dependiendo de velocidad)
+                state.eventProgress += delta * 0.035; 
 
-                // Aplicar posiciones e interpolación de escala a las mallas
-                obj.mesh.position.x = obj.currentDist;
-                obj.mesh.scale.setScalar(obj.currentRadius / obj.data.rVisual);
-
-                // Re-dibujar/escalar dinámicamente las órbitas según se expanden o contraen
-                obj.orbitLine.scale.set(obj.currentDist / obj.data.distVisual, 1, obj.currentDist / obj.data.distVisual);
-
-                // Traslación orbital (Movimiento alrededor del Sol)
-                obj.pivot.rotation.y += obj.data.vOrb;
-
-                // Rotación intrínseca (Sobre su propio eje)
-                obj.mesh.rotation.y += obj.data.vRot;
-
-                // Rotación de la Luna (si el planeta la posee)
-                if (obj.moon) {
-                    obj.moonAngle += 0.05;
-                    obj.moon.position.x = Math.cos(obj.moonAngle) * (obj.currentRadius + 1.2);
-                    obj.moon.position.z = Math.sin(obj.moonAngle) * (obj.currentRadius + 1.2);
-                    obj.moon.rotation.y += 0.01;
+                // Mapear el progreso a un tránsito en el eje X de la pantalla
+                // La Luna entra por la izquierda (-0.15 de desfase) y sale por la derecha (1.15)
+                // Usamos interpolación no lineal para ralentizar el momento cúspide (efecto dramático de totalidad)
+                let t = state.eventProgress;
+                let smoothT = Math.sin(t * Math.PI - Math.PI / 2) * 0.5 + 0.5; // Curva senoidal
+                
+                // Variación de trayectoria según tipo de eclipse
+                let verticalOffset = 0.0;
+                if (state.eclipseType === 0) {
+                    verticalOffset = 0.012; // Desviación física para que no coincida al centro (Eclipse parcial)
                 }
-            });
 
-            controls.update();
+                state.moonX = THREE.MathUtils.lerp(0.2, 0.8, t);
+                state.moonY = sunPosition.y + verticalOffset;
+
+                // Calcular cobertura teórica entre los discos (círculos intersecados simplificado)
+                const dist = Math.sqrt(Math.pow(state.moonX - sunPosition.x, 2) + Math.pow(state.moonY - sunPosition.y, 2));
+                const totalDist = state.sunSize + state.moonSize;
+                
+                if (dist < totalDist) {
+                    // Cálculo no lineal de superposición
+                    let rawCoverage = 1.0 - (dist / totalDist);
+                    state.coverage = Math.min(Math.max(rawCoverage * 1.5, 0.0), 1.0);
+                    
+                    // Si es eclipse parcial la cobertura máxima física real permitida es menor del 80%
+                    if (state.eclipseType === 0) {
+                        state.coverage *= 0.65;
+                    }
+                } else {
+                    state.coverage = 0.0;
+                }
+
+                // Fin del ciclo de eclipse
+                if (state.eventProgress >= 1.0) {
+                    state.activeEvent = false;
+                    state.coverage = 0.0;
+                    state.moonX = -0.5; // Enviar la luna lejos de nuevo
+                    state.timeToNextEclipse = 45 + Math.random() * 45; // Espera aleatoria para el siguiente evento (45-90s)
+                }
+            } else {
+                // Período de calma diurna antes del siguiente tránsito
+                state.timeToNextEclipse -= delta;
+                state.coverage = 0.0;
+                state.moonX = -0.5;
+
+                if (state.timeToNextEclipse <= 0) {
+                    // Elegir aleatoriamente el próximo tipo de eclipse
+                    const types = ['total', 'annular', 'partial'];
+                    const nextType = types[Math.floor(Math.random() * types.length)];
+                    triggerEclipse(nextType);
+                }
+            }
+
+            // --- ACTUALIZACIÓN DE UNIFORMS EN SHADER ---
+            material.uniforms.uTime.value = state.time;
+            material.uniforms.uMoonPos.value.set(state.moonX, state.moonY);
+            material.uniforms.uMoonSize.value = state.moonSize;
+            material.uniforms.uEclipseType.value = state.eclipseType;
+            material.uniforms.uCoverage.value = state.coverage;
+            material.uniforms.uAtmosphereBrightness.value = state.atmosphereBrightness;
+
+            // --- ACTUALIZACIÓN DE AUDIO CINEMÁTICO ---
+            audioSynth.updateDynamics(state.coverage, state.eclipseType);
+
+            // --- ACTUALIZACIÓN DE LA INTERFAZ DE TELEMETRÍA (HUD) ---
+            updateHUD();
+
             renderer.render(scene, camera);
         }
 
-        // --- Adaptabilidad Responsive (Resize del Navegador / Cambios de Orientación) ---
-        window.addEventListener('resize', onWindowResize, false);
+        // Actualizar datos del HUD científico en tiempo real
+        function updateHUD() {
+            // Fase actual
+            const phaseEl = document.getElementById('telemetry-phase');
+            const coverEl = document.getElementById('telemetry-coverage');
+            const luxEl = document.getElementById('telemetry-lux');
+            const timerEl = document.getElementById('telemetry-timer');
+            const statusEl = document.getElementById('status-text');
 
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
+            if (state.activeEvent) {
+                if (state.eclipseType === 2) {
+                    phaseEl.innerText = state.coverage > 0.96 ? "TOTALIDAD CRÍTICA" : "TRANSITO TOTAL";
+                    phaseEl.className = state.coverage > 0.96 ? "text-red-400 font-bold" : "text-white";
+                } else if (state.eclipseType === 1) {
+                    phaseEl.innerText = state.coverage > 0.9 ? "ANULAR - ANILLO" : "TRÁNSITO ANULAR";
+                    phaseEl.className = "text-yellow-400";
+                } else {
+                    phaseEl.innerText = "TRÁNSITO PARCIAL";
+                    phaseEl.className = "text-orange-400";
+                }
+
+                statusEl.innerText = `Eclipse en progreso (${Math.round(state.eventProgress * 100)}%)`;
+                timerEl.innerText = `${Math.round((1.0 - state.eventProgress) * 30 / state.speed)}s`;
+            } else {
+                phaseEl.innerText = "SISTEMA ESTABLE";
+                phaseEl.className = "text-blue-400";
+                statusEl.innerText = `Próximo evento en ${Math.round(state.timeToNextEclipse)}s...`;
+                timerEl.innerText = `${Math.round(state.timeToNextEclipse)}s`;
+            }
+
+            // Cobertura e iluminación ambiente ficticia realista
+            coverEl.innerText = `${(state.coverage * 100).toFixed(1)}%`;
+            
+            const currentLux = Math.round((1.0 - state.coverage) * 120000);
+            luxEl.innerText = `${currentLux.toLocaleString('es-ES')} lux`;
         }
 
-        // Ejecutar simulación
-        animate();
 
+        // --- BINDINGS E INTERACCIONES DE INTERFAZ ---
+        document.getElementById('btn-enter').addEventListener('click', () => {
+            // Iniciar sintetizador de audio tras la interacción requerida por el navegador
+            audioSynth.init();
+            
+            // Ocultar modal de bienvenida
+            const modal = document.getElementById('welcome-modal');
+            modal.classList.add('opacity-0');
+            setTimeout(() => {
+                modal.style.display = 'none';
+                // Mostrar controles sutilmente
+                document.getElementById('controls-panel').classList.remove('opacity-0', 'translate-y-2');
+            }, 1000);
+        });
+
+        // Configuración de Sliders de Control
+        const timeSpeedSlider = document.getElementById('time-speed');
+        const speedValText = document.getElementById('speed-val');
+        timeSpeedSlider.addEventListener('input', (e) => {
+            state.speed = parseFloat(e.target.value);
+            speedValText.innerText = `${state.speed.toFixed(1)}x`;
+        });
+
+        const atmBrightnessSlider = document.getElementById('atmosphere-brightness');
+        const bloomValText = document.getElementById('bloom-val');
+        atmBrightnessSlider.addEventListener('input', (e) => {
+            state.atmosphereBrightness = parseFloat(e.target.value);
+            bloomValText.innerText = `${Math.round(state.atmosphereBrightness * 100)}%`;
+        });
+
+        // Toggle Silencio/Audio
+        const btnToggleSound = document.getElementById('btn-toggle-sound');
+        const soundLabel = document.getElementById('sound-label');
+        const soundIcon = document.getElementById('sound-icon');
+
+        btnToggleSound.addEventListener('click', () => {
+            const isMuted = audioSynth.toggleMute();
+            if (isMuted) {
+                soundLabel.innerText = "AUDIO MUTADO";
+                soundLabel.className = "text-gray-500";
+                soundIcon.innerHTML = `
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                `;
+                soundIcon.classList.replace('text-blue-400', 'text-gray-500');
+            } else {
+                soundLabel.innerText = "AUDIO ACTIVO";
+                soundLabel.className = "text-gray-300";
+                soundIcon.innerHTML = `
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M18.364 5.636a9 9 0 010 12.728M12 18.75V5.25L7.75 9.5H4.5v5h3.25L12 18.75z" />
+                `;
+                soundIcon.classList.replace('text-gray-500', 'text-blue-400');
+            }
+        });
+
+        // Inicializar Todo al Cargar la ventana
+        window.onload = function() {
+            initWebGL();
+            animate();
+        };
     </script>
 </body>
 </html>
+
+```
