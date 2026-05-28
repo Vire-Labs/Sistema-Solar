@@ -876,3 +876,476 @@
 </html>
 
 ```
+from pathlib import Path
+
+html = r'''<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solar Chronos Enhanced</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/postprocessing/UnrealBloomPass.js"></script>
+
+<style>
+body{
+    margin:0;
+    overflow:hidden;
+    background:black;
+    font-family:Arial;
+}
+canvas{
+    width:100vw;
+    height:100vh;
+    display:block;
+}
+.overlay{
+    position:absolute;
+    top:20px;
+    left:20px;
+    color:white;
+    z-index:5;
+    background:rgba(0,0,0,0.25);
+    padding:12px 18px;
+    border-radius:14px;
+    backdrop-filter: blur(10px);
+}
+</style>
+</head>
+
+<body>
+
+<div class="overlay">
+    <h2>SOLAR CHRONOS ENHANCED</h2>
+    <div id="phase">Esperando eclipse...</div>
+</div>
+
+<canvas id="c"></canvas>
+
+<script>
+
+let renderer, scene, camera, material, composer;
+
+const state = {
+    time:0,
+    coverage:0,
+    active:false,
+    eclipseType:2,
+    moonX:-0.4,
+    moonY:0.65,
+    speed:1,
+    next:8
+};
+
+const sunPosition = {x:0.5,y:0.65};
+
+const vertex = `
+varying vec2 vUv;
+void main(){
+    vUv = uv;
+    gl_Position = vec4(position,1.0);
+}
+`;
+
+const fragment = `
+
+uniform vec2 uResolution;
+uniform float uTime;
+uniform vec2 uSunPos;
+uniform vec2 uMoonPos;
+uniform float uCoverage;
+uniform float uMoonSize;
+
+varying vec2 vUv;
+
+float noise(vec2 p){
+    return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453123);
+}
+
+float smoothNoise(vec2 p){
+    vec2 i=floor(p);
+    vec2 f=fract(p);
+    f=f*f*(3.0-2.0*f);
+
+    float a=noise(i);
+    float b=noise(i+vec2(1.0,0.0));
+    float c=noise(i+vec2(0.0,1.0));
+    float d=noise(i+vec2(1.0,1.0));
+
+    return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);
+}
+
+float fbm(vec2 p){
+    float v=0.0;
+    float a=0.5;
+
+    for(int i=0;i<5;i++){
+        v+=a*smoothNoise(p);
+        p*=2.0;
+        a*=0.5;
+    }
+
+    return v;
+}
+
+void main(){
+
+    vec2 uv=vUv;
+
+    uv.x += sin(uv.y*120.0 + uTime*8.0)*0.0007;
+
+    vec2 aspectUv=(uv-0.5)*vec2(uResolution.x/uResolution.y,1.0)+0.5;
+
+    vec2 sunCenter=(uSunPos-0.5)*vec2(uResolution.x/uResolution.y,1.0)+0.5;
+    vec2 moonCenter=(uMoonPos-0.5)*vec2(uResolution.x/uResolution.y,1.0)+0.5;
+
+    float distToSun=distance(aspectUv,sunCenter);
+    float distToMoon=distance(aspectUv,moonCenter);
+
+    vec3 skyTop=vec3(0.10,0.30,0.65);
+    vec3 skyBottom=vec3(0.75,0.88,1.0);
+
+    vec3 sky=mix(skyBottom,skyTop,uv.y);
+
+    float twilightFactor =
+    mix(1.0,0.015,pow(uCoverage,1.8));
+
+    sky*=twilightFactor;
+
+    float horizonGlow =
+    pow(1.0 - abs(uv.y - 0.02),4.0);
+
+    sky +=
+    vec3(1.0,0.4,0.12)
+    * horizonGlow
+    * (1.0-uCoverage)
+    * 0.12;
+
+    vec2 cloudUv1 = aspectUv * 2.2 + vec2(uTime*0.004,0.0);
+    vec2 cloudUv2 = aspectUv * 4.5 - vec2(uTime*0.002,0.0);
+
+    float n1 = fbm(cloudUv1);
+    float n2 = fbm(cloudUv2);
+
+    float clouds = smoothstep(0.38,0.72,mix(n1,n2,0.5));
+
+    vec3 cloudColor =
+    mix(
+        vec3(1.0),
+        vec3(0.08,0.1,0.15),
+        uCoverage
+    );
+
+    float sunCore = smoothstep(0.05,0.045,distToSun);
+
+    float glow = exp(-distToSun*12.0)*1.4;
+
+    float moonMask = smoothstep(
+        uMoonSize,
+        uMoonSize+0.002,
+        distToMoon
+    );
+
+    vec3 sunColor =
+    vec3(1.0,0.95,0.85)
+    * (sunCore*5.0 + glow);
+
+    sunColor *= moonMask;
+
+    float corona = 0.0;
+
+    if(uCoverage > 0.8){
+
+        vec2 dir = aspectUv - sunCenter;
+        float angle = atan(dir.y,dir.x);
+
+        float spikes =
+        pow(abs(sin(angle*14.0)),8.0);
+
+        corona =
+        exp(-distToSun*4.0)
+        * (1.0 + spikes*0.8)
+        * ((uCoverage-0.8)/0.2);
+
+        sunColor +=
+        vec3(0.9,0.95,1.0)
+        * corona;
+    }
+
+    if(uCoverage > 0.93 && uCoverage < 0.99){
+
+        vec2 diamondPos =
+        sunCenter + vec2(0.028,0.012);
+
+        float diamond =
+        smoothstep(
+            0.02,
+            0.0,
+            distance(aspectUv,diamondPos)
+        );
+
+        sunColor +=
+        vec3(1.0,0.95,0.85)
+        * diamond
+        * 8.0;
+    }
+
+    vec3 finalColor = sky;
+
+    finalColor =
+    mix(finalColor,cloudColor,clouds*0.5);
+
+    finalColor += sunColor;
+
+    float anamorphic =
+    exp(-abs(aspectUv.y-sunCenter.y)*120.0);
+
+    finalColor +=
+    vec3(0.8,0.9,1.0)
+    * anamorphic
+    * 0.06
+    * (1.0-uCoverage);
+
+    vec3 mapped =
+    finalColor / (finalColor + vec3(1.0));
+
+    vec3 eclipseAmbient =
+    mix(
+        vec3(1.0),
+        vec3(0.08,0.09,0.15),
+        pow(uCoverage,1.7)
+    );
+
+    mapped *= eclipseAmbient;
+
+    mapped = pow(mapped,vec3(1.0/2.2));
+
+    float grain =
+    noise(uv*uTime*2.0)*0.03;
+
+    mapped += grain;
+
+    gl_FragColor = vec4(mapped,1.0);
+}
+`;
+
+function init(){
+
+    renderer = new THREE.WebGLRenderer({
+        canvas:document.getElementById("c"),
+        antialias:true
+    });
+
+    renderer.setSize(innerWidth,innerHeight);
+
+    renderer.outputEncoding = THREE.sRGBEncoding;
+
+    renderer.toneMapping =
+    THREE.ACESFilmicToneMapping;
+
+    renderer.toneMappingExposure = 1.35;
+
+    scene = new THREE.Scene();
+
+    camera =
+    new THREE.OrthographicCamera(
+        -1,1,1,-1,0,1
+    );
+
+    material = new THREE.ShaderMaterial({
+
+        vertexShader:vertex,
+        fragmentShader:fragment,
+
+        uniforms:{
+            uResolution:{
+                value:new THREE.Vector2(
+                    innerWidth,
+                    innerHeight
+                )
+            },
+
+            uTime:{value:0},
+
+            uSunPos:{
+                value:new THREE.Vector2(
+                    sunPosition.x,
+                    sunPosition.y
+                )
+            },
+
+            uMoonPos:{
+                value:new THREE.Vector2(-0.4,0.65)
+            },
+
+            uCoverage:{value:0},
+
+            uMoonSize:{value:0.047}
+        }
+    });
+
+    const quad =
+    new THREE.Mesh(
+        new THREE.PlaneGeometry(2,2),
+        material
+    );
+
+    scene.add(quad);
+
+    composer =
+    new THREE.EffectComposer(renderer);
+
+    const renderPass =
+    new THREE.RenderPass(scene,camera);
+
+    composer.addPass(renderPass);
+
+    const bloomPass =
+    new THREE.UnrealBloomPass(
+        new THREE.Vector2(
+            innerWidth,
+            innerHeight
+        ),
+        1.3,
+        0.4,
+        0.85
+    );
+
+    composer.addPass(bloomPass);
+
+    addEventListener("resize",resize);
+
+    animate();
+}
+
+function resize(){
+
+    renderer.setSize(innerWidth,innerHeight);
+
+    composer.setSize(innerWidth,innerHeight);
+
+    material.uniforms.uResolution.value.set(
+        innerWidth,
+        innerHeight
+    );
+}
+
+function trigger(){
+
+    state.active=true;
+    state.coverage=0;
+    state.moonX=0.2;
+}
+
+function animate(){
+
+    requestAnimationFrame(animate);
+
+    state.time += 0.016 * state.speed;
+
+    material.uniforms.uTime.value =
+    state.time;
+
+    if(state.active){
+
+        state.moonX += 0.002;
+
+        const dist =
+        Math.abs(state.moonX - sunPosition.x);
+
+        state.coverage =
+        Math.max(
+            0,
+            1.0 - dist / 0.09
+        );
+
+        if(state.moonX > 0.8){
+
+            state.active=false;
+            state.next=15;
+        }
+
+    }else{
+
+        state.next -= 0.016;
+
+        if(state.next <= 0){
+            trigger();
+        }
+
+        state.coverage *= 0.94;
+    }
+
+    const driftX =
+    Math.sin(state.time*0.08)*0.0025;
+
+    const driftY =
+    Math.cos(state.time*0.05)*0.0015;
+
+    material.uniforms.uSunPos.value.set(
+        sunPosition.x + driftX,
+        sunPosition.y + driftY
+    );
+
+    if(state.coverage > 0.95){
+
+        material.uniforms.uSunPos.value.x +=
+        (Math.random()-0.5)*0.0008;
+
+        material.uniforms.uSunPos.value.y +=
+        (Math.random()-0.5)*0.0008;
+    }
+
+    material.uniforms.uMoonPos.value.set(
+        state.moonX,
+        0.65
+    );
+
+    material.uniforms.uCoverage.value =
+    state.coverage;
+
+    let targetExposure =
+    1.35 - state.coverage * 1.05;
+
+    renderer.toneMappingExposure +=
+    (targetExposure - renderer.toneMappingExposure)
+    * 0.02;
+
+    if(state.coverage > 0.96){
+
+        state.speed *= 0.999;
+
+    }else{
+
+        state.speed +=
+        (1.0-state.speed)*0.01;
+    }
+
+    document.getElementById("phase").innerHTML =
+    state.active
+    ? "Cobertura: " + (state.coverage*100).toFixed(1)+"%"
+    : "Esperando próximo eclipse...";
+
+    composer.render();
+}
+
+init();
+
+</script>
+
+</body>
+</html>
+'''
+
+path = Path("/mnt/data/solar_chronos_enhanced.html")
+path.write_text(html, encoding="utf-8")
+
+print(f"Archivo creado: {path}")
+
+
